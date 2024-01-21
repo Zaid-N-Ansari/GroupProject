@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}• Home{% endblock title %}
+
+{% block content %}
+
+<style type="text/css">
+
+.chat-log {
+	height: 45rem;
+	overflow-x: hidden;
+	overflow-y: auto;
+	padding: 10px;
+	background-color: #fff;
+	font-size: 0.9em;
+	flex-direction: column-reverse;
+}
+div.chat-message-input-container {
+    height: 3.6rem;
+}
+.justify-content-evenly {
+    justify-content: space-evenly !important;
+}
+#id_chat_message_submit {
+    height: inherit;
+}
+.profile-image {
+	width: 2.1875rem;
+	height: 2.1875rem;
+    margin-bottom: auto;
+}
+.profile-image:hover, .uname-span:hover {
+    cursor: pointer;
+}
+.msg-p {
+    white-space: normal;
+    -ms-word-break: break-all;
+    word-break: break-all;
+    width: -webkit-fill-available;
+    user-select: none;
+    cursor: default;
+}
+.uname-span {
+    font-weight: 500;
+}
+
+</style>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-12 col-sm-12">
+            <div class="d-flex chat-log mb-4" id="id_chat_log">
+                <!-- Public Chat Messages are Here -->
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12 col-sm-12 col-12 d-flex chat-message-input-container justify-content-evenly align-items-center">
+            <textarea class="col-md-10 col-sm-10 col-10 flex-grow-1 chat-message-input px-2 py-1" id="id_chat_message_input" style="resize: none;"></textarea>
+            <span id="id_chat_message_submit" class="col-md-1 col-sm-1 col-1 btn btn-primary p-0 material-icons d-flex align-items-center justify-content-center">send</span>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript" lang="javascript" defer>
+    setupChatPublicWS();
+
+    function setupChatPublicWS() {
+        var ws_scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+
+        {% if debug_mode %}
+        var ws_path = `${ws_scheme}://${window.location.host}/chatpublic/{{room_id}}/`;
+        {% else %}
+        var ws_path = `${ws_scheme}://${window.location.host}:8001/chatpublic/{{room_id}}/`;
+        {% endif %}
+
+        var ws = new WebSocket(ws_path);
+
+        ws.onmessage = function (msg) {
+            console.log("Got a Msg: " + msg.data);
+            const data = JSON.parse(msg.data);
+            appendChatMsg(data);
+        }
+
+        ws.addEventListener("open", function (event) {
+            console.log("Socket OPEN");
+        });
+
+        ws.onclose = function (event) {
+            console.log("Socket CLOSED");
+        }
+
+        ws.onopen = function (event) {
+            console.log("Socket ON OPEN");
+        }
+
+        ws.onerror = function (event) {
+            console.log(event);
+        }
+
+        if (ws.readyState === WebSocket.OPEN) {
+            console.log("Socket OPEN");
+        } else if (ws.readyState === WebSocket.CONNECTING) {
+            console.log("Socket CONNECTING");
+        }
+
+        var txtarea = document.getElementById("id_chat_message_input");
+        var subMsgBtn = document.getElementById("id_chat_message_submit");
+
+        txtarea.focus();
+
+        txtarea.onkeyup = function(event) {
+            if(event.keyCode == 13 && event.shiftKey) {
+                
+            }
+            else if(event.keyCode == 13 && !event.shiftKey) {
+                document.getElementById("id_chat_message_submit").click();
+            }
+
+            subMsgBtn.onclick = function(event) {
+                const msg = txtarea.value.trim();
+
+                if(!(msg === "")) {
+                    ws.send(JSON.stringify({
+                        "command": "send",
+                        "message": msg
+                    }));
+                    txtarea.value = "";
+                }
+
+            }
+        }
+    }
+
+    function appendChatMsg(data) {
+        const msg = `${data["message"]}\n`;
+        const uname = `@${data["username"]}`;
+        const pfimg = `${data["profile_image"]}`;
+
+        createChatMsgElm(msg, uname, pfimg);
+    }
+
+    function createChatMsgElm(msg, uname, pfimg) {
+        const chatLog = document.getElementById("id_chat_log");
+
+        const newMsgDiv = document.createElement("div");
+ 
+        const profileImg = document.createElement("img");
+        profileImg.setAttribute("class", "profile-image rounded-circle img-fluid mr-1 mt-1");
+        profileImg.src = pfimg;
+        profileImg.addEventListener("click", function(event) {
+            selectUser(uname.replace("@",""));
+        });
+
+        newMsgDiv.appendChild(profileImg);
+     
+        const div1 = document.createElement("div");
+        div1.setAttribute("class", "d-flex flex-column align-items-center");
+        div1.style.height = "min-content";
+  
+        const div2 = document.createElement("div");
+        div2.setAttribute("class", "d-flex flex-row");
+        div2.style.width = "-webkit-fill-available";
+       
+        const unameSpan = document.createElement("span");
+        unameSpan.setAttribute("class", "uname-span");
+        unameSpan.innerHTML = uname;
+        unameSpan.addEventListener("click", function(event) {
+            selectUser(uname.replace("@",""));
+        });
+        
+        div2.appendChild(unameSpan);
+
+        div1.appendChild(div2);
+
+        const placement_RL = "{{request.user.username}}"===unameSpan.innerText.replace("@","") ? "justify-content-start" : "justify-content-end";
+
+        newMsgDiv.setAttribute("class", `d-flex flex-row my-1 ${placement_RL}`);
+     
+        const msgP = document.createElement("p");
+        msgP.innerText = msg;
+        msgP.setAttribute("class", "msg-p");
+
+        div1.appendChild(msgP);
+       
+        newMsgDiv.appendChild(div1);
+
+        chatLog.insertBefore(newMsgDiv, chatLog.firstChild);
+    }
+
+
+    function selectUser(username) {
+        const url = "{% url 'account:view' user_id=122123324554 %}".replace("122123324554", username);
+        window.open(url, "_blank");
+    }
+</script>
+
+{% endblock content %}

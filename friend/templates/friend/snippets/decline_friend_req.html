@@ -1,0 +1,26 @@
+<script type="text/javascript">
+	function declineFriendReq(friend_req_id, updateUIfn){
+		var url = "{% url 'friend:decline' friend_req_id=122123324554 %}".replace("122123324554", friend_req_id);
+		$.ajax({
+			type: "GET",
+			dataType: "json",
+			url: url,
+			timeout: 5000,
+			success: function(data) {
+				console.log("SUCCESS", data)
+				if(data.response == "Friend Request Declined"){
+
+				}
+				else if(data['response'] != null){
+					alert(data.response);
+				}
+			},
+			error: function(data) {
+				alert(data);
+			},
+			complete: function(data){
+				updateUIfn();
+			}
+		});
+	}
+</script>
