@@ -20,6 +20,8 @@ AUTHENTICATION_BACKENDS = (
 )
 
 INSTALLED_APPS = [
+	'django.contrib.humanize', # This is for the day/date/time formatting
+
 	# Pre-Built apps, Django Default
 
 	'channels', # These 2 are python libraries for upgrading
@@ -111,7 +113,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
+
 
 USE_I18N = True
 
@@ -130,8 +133,8 @@ MEDIA_ROOT = join(BASE_DIR, 'media_cdn')
 
 TEMP = join(BASE_DIR, 'media_cdn/temp')
 
-BASE_URL = 'http://127.0.0.1:8000'
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 IMAGE_MAX_UPLOAD_SIZE = 10485760 # 10 * 1024 * 1024 (max size is 10MB)
+
+BASE_URL = 'http://127.0.0.1:8000'
