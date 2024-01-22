@@ -35,13 +35,13 @@ class ChatPublicRoom(models.Model):
 
 	@property
 	def group_name(self):
-		return f'ChatPublicRoom-{self.id}'
+		return f'ChatPublicRoom{self.id}'
 	
 
 
 class ChatPublicRoomMessageManager(models.Manager):
 	def by_room(self, room):
-		query_set = ChatPublicRoomMessage.objects.filter(room=room).order_by('-timestamp')
+		query_set = ChatPublicRoomMessage.objects.filter(room=room).order_by('timestamp')
 
 		return query_set
 

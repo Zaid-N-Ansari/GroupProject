@@ -4,188 +4,293 @@
 
 {% block content %}
 
-<style type="text/css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
 
-.chat-log {
-	height: 45rem;
-	overflow-x: hidden;
-	overflow-y: auto;
-	padding: 10px;
-	background-color: #fff;
-	font-size: 0.9em;
-	flex-direction: column-reverse;
-}
-div.chat-message-input-container {
-    height: 3.6rem;
-}
-.justify-content-evenly {
-    justify-content: space-evenly !important;
-}
-#id_chat_message_submit {
-    height: inherit;
-}
-.profile-image {
-	width: 2.1875rem;
-	height: 2.1875rem;
-    margin-bottom: auto;
-}
-.profile-image:hover, .uname-span:hover {
-    cursor: pointer;
-}
-.msg-p {
-    white-space: normal;
-    -ms-word-break: break-all;
-    word-break: break-all;
-    width: -webkit-fill-available;
-    user-select: none;
-    cursor: default;
-}
-.uname-span {
-    font-weight: 500;
-}
+<style type="text/css">
+    .chat-log {
+        min-height: 35rem;
+        max-height: 35rem;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: 10px;
+        background-color: #fff;
+        font-size: 0.9em;
+        flex-direction: column-reverse;
+    }
+
+    div.chat-message-input-container {
+        height: 3.6rem;
+        border: 1px var(--primary) solid;
+    }
+
+    .justify-content-evenly {
+        justify-content: space-evenly !important;
+    }
+
+    #id_chat_message_input {
+        resize: none;
+        border: 0px transparent solid;
+        outline-width: 0px;
+        border-right: 1px var(--primary) solid;
+    }
+
+    #id_chat_emoji {
+        border-right: 1px var(--primary) solid;
+        height: 100%;
+    }
+
+    .profile-image {
+        width: 2.1875rem;
+        height: 2.1875rem;
+    }
+
+    .profile-image:hover,
+    .uname-span:hover, #id_chat_emoji {
+        cursor: pointer;
+    }
+
+    .msg-p {
+        white-space: normal;
+        -ms-word-break: break-all;
+        word-break: break-all;
+        width: -webkit-fill-available;
+        user-select: none;
+        cursor: default;
+        min-height: 43.219px;
+    }
+
+    .uname-span {
+        font-weight: 500;
+    }
+
+    .timestamp-span {
+        font-weight: 400;
+        font-size: 0.8rem;
+        color: var(--secondary-text-color);
+    }
+
+    .timestamp-span:hover, .connected-user-icon:hover, .card-header {
+        cursor: default;
+    }
 
 </style>
 
-<div class="container">
-    <div class="row">
-        <div class="col-md-12 col-sm-12">
-            <div class="d-flex chat-log mb-4" id="id_chat_log">
-                <!-- Public Chat Messages are Here -->
+{% if debug %}
+PUBLIC CHAT
+{% endif %}
+
+<span class="page-num {% if not debug %}d-none{% endif %}" id="id_page_num">1</span>
+<div class="container shadow-lg p-0">
+    <div class="card mt-3">
+        <div class="card-header">
+            <div class="d-flex flex-row justify-content-between">
+                <h3>Public ProChat</h3>
+                <div class="d-flex flex-row align-items-center">
+                    <span class="material-icons m-auto pr-1 connected-user-icon">person_outline</span>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="row">
-        <div class="col-md-12 col-sm-12 col-12 d-flex chat-message-input-container justify-content-evenly align-items-center">
-            <textarea class="col-md-10 col-sm-10 col-10 flex-grow-1 chat-message-input px-2 py-1" id="id_chat_message_input" style="resize: none;"></textarea>
-            <span id="id_chat_message_submit" class="col-md-1 col-sm-1 col-1 btn btn-primary p-0 material-icons d-flex align-items-center justify-content-center">send</span>
+        <div class="col-md-12 col-sm-12 d-flex chat-log" id="id_chat_log">
+                    <!-- Public Chat Messages are Here -->
+         </div>
+        <div class="d-flex chat-message-input-container justify-content-evenly align-items-center">
+            <textarea spellcheck="false" class="flex-grow-1 chat-message-input px-2 py-1" id="id_chat_message_input"></textarea>
+            
+            <span id="id_chat_emoji" class="px-3 d-flex align-items-center justify-content-center material-icons">add_reaction</span>
+            
+            <span id="id_chat_message_submit" class="px-3 material-icons d-flex align-items-center justify-content-center">send</span>
         </div>
     </div>
 </div>
 
 <script type="text/javascript" lang="javascript" defer>
-    setupChatPublicWS();
+    var ws_scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    {% if debug_mode %}
+    var ws_path = `${ws_scheme}://${window.location.host}/chatpublic/{{room_id}}/`;
+    {% else %}
+    var ws_path = `${ws_scheme}://${window.location.host}:8001/chatpublic/{{room_id}}/`;
+    {% endif %}
 
-    function setupChatPublicWS() {
-        var ws_scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    var ws = new WebSocket(ws_path);
 
-        {% if debug_mode %}
-        var ws_path = `${ws_scheme}://${window.location.host}/chatpublic/{{room_id}}/`;
-        {% else %}
-        var ws_path = `${ws_scheme}://${window.location.host}:8001/chatpublic/{{room_id}}/`;
-        {% endif %}
+    ws.onmessage = function (msg) {
+        console.log("Got a Msg: " + msg.data);
+        const data = JSON.parse(msg.data);
+        
+        displayLoadingSpinner(data.is_disp);
 
-        var ws = new WebSocket(ws_path);
-
-        ws.onmessage = function (msg) {
-            console.log("Got a Msg: " + msg.data);
-            const data = JSON.parse(msg.data);
-            appendChatMsg(data);
+        if (data.error) {
+            showClientErrorModal(data.message);
         }
-
-        ws.addEventListener("open", function (event) {
-            console.log("Socket OPEN");
-        });
-
-        ws.onclose = function (event) {
-            console.log("Socket CLOSED");
+        if (data.msg_type == 0) {
+            appendChatMsg(data, true, true);
         }
-
-        ws.onopen = function (event) {
-            console.log("Socket ON OPEN");
+        if (data.msg_type == 1) {
+            setConUsrCnt(data.connected_user_count)
         }
-
-        ws.onerror = function (event) {
-            console.log(event);
+        if(data.join) {
+            getChatRoomMsg();
+            console.log(`${data.username} joined the room`);
         }
-
-        if (ws.readyState === WebSocket.OPEN) {
-            console.log("Socket OPEN");
-        } else if (ws.readyState === WebSocket.CONNECTING) {
-            console.log("Socket CONNECTING");
-        }
-
-        var txtarea = document.getElementById("id_chat_message_input");
-        var subMsgBtn = document.getElementById("id_chat_message_submit");
-
-        txtarea.focus();
-
-        txtarea.onkeyup = function(event) {
-            if(event.keyCode == 13 && event.shiftKey) {
-                
-            }
-            else if(event.keyCode == 13 && !event.shiftKey) {
-                document.getElementById("id_chat_message_submit").click();
-            }
-
-            subMsgBtn.onclick = function(event) {
-                const msg = txtarea.value.trim();
-
-                if(!(msg === "")) {
-                    ws.send(JSON.stringify({
-                        "command": "send",
-                        "message": msg
-                    }));
-                    txtarea.value = "";
-                }
-
-            }
+        if(data.message_payload) {
+            console.log("PayLoad");
+            handleMsgPayload(data.message, data.new_page_num);
         }
     }
 
-    function appendChatMsg(data) {
+    ws.addEventListener("open", function (event) {
+        console.log("Socket OPEN");
+        if ("{{request.user.is_authenticated}}") {
+            ws.send(JSON.stringify({
+                "command": "join",
+                "room_id": "{{room_id}}"
+            }));
+        }
+    });
+
+    ws.onclose = function (event) {
+        console.log("Socket CLOSED");
+    }
+
+    ws.onopen = function (event) {
+        console.log("Socket ON OPEN");
+    }
+
+    ws.onerror = function (event) {
+        console.log(event);
+    }
+
+    if (ws.readyState === WebSocket.OPEN) {
+        console.log("Socket OPEN");
+    } else if (ws.readyState === WebSocket.CONNECTING) {
+        console.log("Socket CONNECTING");
+    }
+
+    var txtarea = document.getElementById("id_chat_message_input");
+    var subMsgBtn = document.getElementById("id_chat_message_submit");
+
+    txtarea.focus();
+
+    txtarea.onkeyup = function (event) {
+        if (event.keyCode == 13 && event.shiftKey) {
+
+        }
+        else if (event.keyCode == 13 && !event.shiftKey) {
+            document.getElementById("id_chat_message_submit").click();
+        }
+
+        subMsgBtn.onclick = function (event) {
+            const msg = txtarea.value;
+            ws.send(JSON.stringify({
+                "command": "send",
+                "message": msg,
+                "room_id": "{{room_id}}"
+            }));
+            txtarea.value = "";
+        }
+    }
+
+    function setPageNum(pageNum) {
+        document.getElementById("id_page_num").innerText = pageNum;
+    }
+
+    function setPaginationExhaust() { 
+        setPageNum("-1");
+    }
+
+    function getChatRoomMsg() {
+        const pageNum = document.getElementById("id_page_num").innerText;
+        if(pageNum != "-1") {
+            setPageNum("-1");
+            ws.send(JSON.stringify({
+                "command": "get_room_chat_msgs",
+                "room_id": "{{room_id}}",
+                "page_num": pageNum
+            }));
+        }
+    }
+
+    function handleMsgPayload(messages, newPageNum) {
+        if(messages != null && messages != "undefined" && messages != "None") {
+            setPageNum(newPageNum)
+            messages.forEach(function(message) {
+                appendChatMsg(message, true, false);
+            });
+        } 
+        else {
+            setPaginationExhaust();
+        }
+    }
+
+    const chatLog = document.getElementById("id_chat_log");
+    chatLog.addEventListener("scroll", function(event) {
+        if( (Math.abs(chatLog.scrollTop) + 2) >= (chatLog.scrollHeight - chatLog.offsetHeight)) {
+            getChatRoomMsg();
+        }
+    });
+
+    function appendChatMsg(data, maintainPos, isNewMsg) {
         const msg = `${data["message"]}\n`;
         const uname = `@${data["username"]}`;
         const pfimg = `${data["profile_image"]}`;
+        const timestamp = `${data['timestamp']}`;
 
-        createChatMsgElm(msg, uname, pfimg);
+        createChatMsgElm(msg, uname, pfimg, timestamp, maintainPos, isNewMsg);
     }
 
-    function createChatMsgElm(msg, uname, pfimg) {
-        const chatLog = document.getElementById("id_chat_log");
-
+    function createChatMsgElm(msg, uname, pfimg, timestamp, maintainPos, isNewMsg) {
         const newMsgDiv = document.createElement("div");
- 
+        newMsgDiv.setAttribute("class", `d-flex flex-row mt-1`);
+
         const profileImg = document.createElement("img");
         profileImg.setAttribute("class", "profile-image rounded-circle img-fluid mr-1 mt-1");
         profileImg.src = pfimg;
-        profileImg.addEventListener("click", function(event) {
-            selectUser(uname.replace("@",""));
+        profileImg.addEventListener("click", function (event) {
+            selectUser(uname.replace("@", ""));
         });
 
         newMsgDiv.appendChild(profileImg);
-     
+
         const div1 = document.createElement("div");
         div1.setAttribute("class", "d-flex flex-column align-items-center");
         div1.style.height = "min-content";
-  
+
         const div2 = document.createElement("div");
         div2.setAttribute("class", "d-flex flex-row");
         div2.style.width = "-webkit-fill-available";
-       
+
         const unameSpan = document.createElement("span");
         unameSpan.setAttribute("class", "uname-span");
         unameSpan.innerHTML = uname;
-        unameSpan.addEventListener("click", function(event) {
-            selectUser(uname.replace("@",""));
+        unameSpan.addEventListener("click", function (event) {
+            selectUser(uname.replace("@", ""));
         });
-        
+
         div2.appendChild(unameSpan);
+
+        const tsSpan = document.createElement("span");
+        tsSpan.innerText = timestamp;
+        tsSpan.setAttribute("class", "timestamp-span d-flex align-items-center ml-1");
+
+        div2.appendChild(tsSpan);
 
         div1.appendChild(div2);
 
-        const placement_RL = "{{request.user.username}}"===unameSpan.innerText.replace("@","") ? "justify-content-start" : "justify-content-end";
 
-        newMsgDiv.setAttribute("class", `d-flex flex-row my-1 ${placement_RL}`);
-     
         const msgP = document.createElement("p");
         msgP.innerText = msg;
-        msgP.setAttribute("class", "msg-p");
+        msgP.setAttribute("class", "msg-p m-0");
 
         div1.appendChild(msgP);
-       
-        newMsgDiv.appendChild(div1);
 
-        chatLog.insertBefore(newMsgDiv, chatLog.firstChild);
+        newMsgDiv.appendChild(div1);
+        if(isNewMsg)
+            chatLog.insertBefore(newMsgDiv, chatLog.firstChild);
+        else
+            chatLog.appendChild(newMsgDiv);
+
+        if(!maintainPos)
+            chatLog.scrollTop = chatLog.scrollHeight;
     }
 
 
@@ -193,6 +298,38 @@ div.chat-message-input-container {
         const url = "{% url 'account:view' user_id=122123324554 %}".replace("122123324554", username);
         window.open(url, "_blank");
     }
+
+
+    function showClientErrorModal(message) {
+        document.getElementById("id_client_error_modal_body").innerText = message;
+        document.getElementById("id_trigger_client_error_modal").click();
+    }
+
 </script>
+
+<!-- Client Error MODAL -->
+<button type="button" id="id_trigger_client_error_modal" class="d-none btn btn-primary" data-toggle="modal"
+    data-target="#id_client_error_modal">
+</button>
+<div class="modal fade" id="id_client_error_modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Socket Client Error</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="id_client_error_modal_body">Something went wrong.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal"
+                    id="id_client_error_modal_close_btn">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Client Error MODAL -->
 
 {% endblock content %}
