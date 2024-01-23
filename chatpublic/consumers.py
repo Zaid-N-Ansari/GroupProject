@@ -1,8 +1,9 @@
 from json import dumps, loads
+from sqlite3 import Timestamp
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.contrib.auth import get_user_model
 from django.contrib.humanize.templatetags.humanize import naturalday
-from datetime import datetime as dt
+from datetime import datetime as dt, tzinfo
 from django.utils import timezone as tz
 import pytz
 from .models import ChatPublicRoom, ChatPublicRoomMessage
@@ -245,17 +246,16 @@ class ClientError(Exception):
 
 
 def set_timestamp(timestamp):
-	print(timestamp)
-	if (naturalday(timestamp) == "today") or (naturalday(timestamp) == "yesterday"):
-		str_time = dt.strftime(timestamp, "%I:%M %p")
-		str_time = str_time.strip("0")
-		ts = f"{naturalday(timestamp)} at {str_time}"
-    # other days
+	timestamp = timestamp.astimezone(pytz.timezone('Asia/Kolkata'))
+	if naturalday(timestamp) == 'today' or naturalday(timestamp) == 'yesterday':
+		str_time = dt.strftime(timestamp, '%I:%M %p')
+		str_time = str_time.strip('0')
+		ts = f'{naturalday(timestamp)} at {str_time}'
 	else:
-		str_time = dt.strftime(timestamp, "%m/%d/%Y")
-		ts = f"{str_time}"
+		str_time = dt.strftime(timestamp, '%m/%d/%Y')
+		ts = f'{str_time}'
 
-	return str(ts)
+	return ts
 
 
 @database_sync_to_async
@@ -282,6 +282,7 @@ class LazyChatRoomMessageEncoder(Serializer):
 	def get_dump_object(self, obj):
 		dump_obj = {}
 		dump_obj['msg_type'] = MSG_TYPE_MESSAGE
+		dump_obj['msg_id'] = str(obj.id)
 		dump_obj['username'] = str(obj.user.username)
 		dump_obj['message'] = str(obj.content)
 		dump_obj['profile_image'] = str(obj.user.profile_image.url)

@@ -41,7 +41,7 @@ class ChatPublicRoom(models.Model):
 
 class ChatPublicRoomMessageManager(models.Manager):
 	def by_room(self, room):
-		query_set = ChatPublicRoomMessage.objects.filter(room=room).order_by('timestamp')
+		query_set = ChatPublicRoomMessage.objects.filter(room=room).order_by('-timestamp')
 
 		return query_set
 
@@ -57,4 +57,4 @@ class ChatPublicRoomMessage(models.Model):
 
 
 	def __str__(self):
-		return self.content
+		return str(self.timestamp)
