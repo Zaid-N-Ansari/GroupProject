@@ -38,6 +38,8 @@ urlpatterns = [
 
     path('admin/', admin.site.urls),
 
+    path('chat/', include('chat.urls', namespace='chat')),
+
     path('friend/', include('friend.urls', namespace='friend')),
 
     path('login/', login_view, name='login'),

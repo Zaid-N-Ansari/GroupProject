@@ -20,8 +20,6 @@ AUTHENTICATION_BACKENDS = (
 )
 
 INSTALLED_APPS = [
-	'django.contrib.humanize', # This is for the day/date/time formatting
-
 	# Pre-Built apps, Django Default
 
 	'channels', # These 2 are python libraries for upgrading
@@ -33,12 +31,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+	'django.contrib.humanize', # This is for the day/date/time formatting
 	
     # Custom Built apps
     'app',
 	'account',
 	'friend',
 	'chatpublic',
+	'chat',
+	'notification',
 ]
 
 MIDDLEWARE = [
@@ -113,8 +114,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'Asia/Kolkata'
-
+TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
