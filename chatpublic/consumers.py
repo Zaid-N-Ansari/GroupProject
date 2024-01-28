@@ -1,17 +1,12 @@
 from json import dumps, loads
-from sqlite3 import Timestamp
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
-from django.contrib.auth import get_user_model
-from django.contrib.humanize.templatetags.humanize import naturalday
-from datetime import datetime as dt, tzinfo
-from django.utils import timezone as tz
-import pytz
+from datetime import datetime as dt, timezone as tz
 from .models import ChatPublicRoom, ChatPublicRoomMessage
 from channels.db import database_sync_to_async
 from django.core.serializers.python import Serializer
 from django.core.paginator import Paginator
-
-UserModel = get_user_model()
+from chat.exceptions import ClientError
+from chat.utils import set_timestamp
 
 MSG_TYPE_MESSAGE = 0
 DEFAULT_RESULT_SIZE_PER_PAGE = 10
@@ -94,8 +89,8 @@ class ChatPublicConsumer(AsyncJsonWebsocketConsumer):
 
 	async def chat(self, event):
 		print(f'\nChatPublicConsumer : chat : {event}\n')
-		utc_time = tz.now().astimezone(pytz.timezone('Asia/Kolkata'))
-		ts = set_timestamp(utc_time)
+		now = dt.now(tz.utc).astimezone()
+		ts = set_timestamp(now)
 		await self.send_json({
 			'msg_type': MSG_TYPE_MESSAGE,
 			'profile_image': event['profile_image'],
@@ -236,26 +231,6 @@ def get_room(room_id):
 		raise ClientError('ROOM INVALID', f'Room corresponding to the room_id {room_id} does not exists')
 	return room
 
-
-class ClientError(Exception):
-	def __init__(self, code, message):
-		super().__init__(code)
-		self.code = code
-		if message:
-			self.message = message
-
-
-def set_timestamp(timestamp):
-	timestamp = timestamp.astimezone(pytz.timezone('Asia/Kolkata'))
-	if naturalday(timestamp) == 'today' or naturalday(timestamp) == 'yesterday':
-		str_time = dt.strftime(timestamp, '%I:%M %p')
-		str_time = str_time.strip('0')
-		ts = f'{naturalday(timestamp)} at {str_time}'
-	else:
-		str_time = dt.strftime(timestamp, '%m/%d/%Y')
-		ts = f'{str_time}'
-
-	return ts
 
 
 @database_sync_to_async

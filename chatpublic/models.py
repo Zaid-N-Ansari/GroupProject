@@ -1,11 +1,9 @@
 from django.db import models
 from ProChat.settings import AUTH_USER_MODEL
 
-
 class ChatPublicRoom(models.Model):
 	title = models.CharField(max_length=60, unique=True, blank=False)
 	users = models.ManyToManyField(AUTH_USER_MODEL, blank=True, help_text='users connected to chat')
-
 
 	def __str__(self):
 		return self.title
@@ -22,7 +20,6 @@ class ChatPublicRoom(models.Model):
 	
 		return is_user_added
 
-
 	def disconnect_user(self, user):
 		is_user_removed = False
 		if user in self.users.all():
@@ -32,12 +29,10 @@ class ChatPublicRoom(models.Model):
 
 		return is_user_removed
 
-
 	@property
 	def group_name(self):
 		return f'ChatPublicRoom{self.id}'
 	
-
 
 class ChatPublicRoomMessageManager(models.Manager):
 	def by_room(self, room):
@@ -52,9 +47,7 @@ class ChatPublicRoomMessage(models.Model):
 	timestamp = models.DateTimeField(auto_now_add=True)
 	content = models.TextField(unique=False, blank=False)
 
-
 	objects = ChatPublicRoomMessageManager()
-
 
 	def __str__(self):
 		return str(self.timestamp)

@@ -9,7 +9,6 @@
         padding: 10px;
         background-color: #fff;
         font-size: 0.9em;
-        flex-direction: column-reverse;
     }
 
     .justify-content-evenly {
@@ -28,25 +27,25 @@
     }
 
     .profile-image:hover,
-    .uname-span:hover, .chat-message-input-container > span {
+    .uname:hover, .chat-message-input-container > span {
         cursor: pointer;
+    }
+
+    .uname {
+        font-weight: 500;
     }
 
     .chat-message-input-container {
         border-top: 1px black solid;
     }
 
-    .chat-message-input-container > span {
+    #id_chat_message_submit {
         border-left: 1px black solid;
     }
 
     .msg-p {
         white-space: normal;
-        -ms-word-break: break-all;
-        word-break: break-all;
         width: -webkit-fill-available;
-        user-select: none;
-        cursor: default;
         min-height: 43.219px;
     }
 
@@ -56,7 +55,7 @@
         color: var(--secondary-text-color);
     }
 
-    .timestamp-span:hover, .connected-user-icon:hover, .card-header {
+    .timestamp-span:hover, .connected-user-icon:hover, .card-header{
         cursor: default;
     }
 
@@ -73,13 +72,13 @@ PUBLIC CHAT
             <div class="d-flex flex-row justify-content-between">
                 <h3>Public ProChat</h3>
                 <div class="d-flex flex-row align-items-center text-success">
-                    <span class="material-icons m-auto pr-2">person_outline</span>
+                    <span class="material-icons m-auto pr-1">person_outline</span>
                     <span id="id_connected_user"></span>
                 </div>
             </div>
         </div>
         <div class="card-body p-1">
-            <div class="col-md-12 col-sm-12 d-flex chat-log" id="id_chat_log">
+            <div class="col-md-12 col-sm-12 d-flex chat-log flex-column-reverse" id="id_chat_log">
                         <!-- Public Chat Messages are Here -->
             </div>
             <div class="d-flex chat-message-input-container justify-content-evenly align-items-center">
@@ -94,14 +93,16 @@ PUBLIC CHAT
 </div>
 
 <script type="text/javascript" lang="javascript" defer>
-    var ws_scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+
+    const chatLog = document.getElementById("id_chat_log");
+    const ws_scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
     {% if debug_mode %}
-    var ws_path = `${ws_scheme}://${window.location.host}/chatpublic/{{room_id}}/`;
+    const ws_path = `${ws_scheme}://${window.location.host}/chatpublic/{{room_id}}/`;
     {% else %}
-    var ws_path = `${ws_scheme}://${window.location.host}:8001/chatpublic/{{room_id}}/`;
+    const ws_path = `${ws_scheme}://${window.location.host}:8001/chatpublic/{{room_id}}/`;
     {% endif %}
 
-    var ws = new WebSocket(ws_path);
+    const ws = new WebSocket(ws_path);
 
     ws.onmessage = function (msg) {
         console.log("Got a Msg: " + msg.data);
@@ -121,6 +122,7 @@ PUBLIC CHAT
         if(data.join) {
             getChatRoomMsg();
             console.log(`${data.username} joined the room`);
+            chatLog
         }
         if(data.message_payload) {
             console.log("PayLoad");
@@ -212,7 +214,6 @@ PUBLIC CHAT
         }
     }
 
-    const chatLog = document.getElementById("id_chat_log");
     chatLog.addEventListener("scroll", function(event) {
         if( (Math.abs(chatLog.scrollTop) + 2) >= (chatLog.scrollHeight - chatLog.offsetHeight)) {
             getChatRoomMsg();
@@ -220,7 +221,7 @@ PUBLIC CHAT
     });
 
     function appendChatMsg(data, maintainPos, isNewMsg) {
-        const msg = `${data["message"]}\n`;
+        const msg = `${data["message"]}`;
         const uname = `@${data["username"]}`;
         const pfimg = `${data["profile_image"]}`;
         const timestamp = `${data['timestamp']}`;
@@ -253,7 +254,7 @@ PUBLIC CHAT
         div2.style.width = "-webkit-fill-available";
 
         const unameSpan = document.createElement("span");
-        unameSpan.setAttribute("class", ".h6");
+        unameSpan.setAttribute("class", "uname");
         unameSpan.innerHTML = uname;
         unameSpan.addEventListener("click", function (event) {
             selectUser(uname.replace("@", ""));
@@ -272,7 +273,7 @@ PUBLIC CHAT
 
         const msgP = document.createElement("p");
         msgP.innerHTML = validateText(msg);
-        msgP.setAttribute("class", "msg-p m-0");
+        msgP.setAttribute("class", "msg-p text-break");
 
         div1.appendChild(msgP);
 
