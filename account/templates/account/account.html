@@ -90,7 +90,7 @@
 				<div class="d-flex flex-column justify-content-center p-4">
 					<div class="image-container mx-auto mb-4">
 						<img class="d-block border border-dark rounded-circle img-fluid mx-auto profile-image"
-							alt="profile logo" id="id_profile_image" src="{{ profile_image }}">
+							alt="profile logo" id="id_profile_image" src="{% static 'ProChat/dummy_image.png' %}">
 					</div>
 					<p class="mt-4 mb-1 field-heading">Username</p>
 					<h5>{{username}}</h5>
@@ -191,7 +191,7 @@
 			{% endif %}
 
 			{% if is_friend %}
-			<div class="d-flex flex-row align-items-center btn btn-primary m-2 px-4" onclick="createOrReturnPrivateChat('{{id}}')">
+			<div class="d-flex flex-row align-items-center btn btn-primary m-2 px-4" onclick="getPrivateChat('{{username}}')">
 				<span class="material-icons m-auto">
 					message
 				</span>
@@ -206,8 +206,7 @@
 
 <script type="text/javascript">
 
-	// called from base_js.html
-	//preloadImage("{{profile_image|safe}}", 'id_profile_image')
+	preloadImg("{{profile_image|safe}}", 'id_profile_image')
 
 	function onFriendRequestSent() {
 		location.reload(true);
@@ -259,6 +258,7 @@
 		declineFriendReq(friend_req_id, onFriendRequestDeclined)
 	}
 
+{% include 'chat/snippets/get_private_chat.js' %}
 </script>
 
 
@@ -267,6 +267,5 @@
 {% include 'friend/snippets/decline_friend_req.html' %}
 {% include 'friend/snippets/cancel_friend_req.html' %}
 {% include 'friend/snippets/remove_friend.html' %}
-{#% include 'chat/create_or_return_private_chat.html' %#}
 
 {% endblock content %}
