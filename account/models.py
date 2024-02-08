@@ -72,6 +72,6 @@ class ChatAccount(AbstractBaseUser):
 		return True
 
 
-# @receiver(post_save, sender=ChatAccount)
-# def user_save(sender, instance, **kwargs):
-# 	FriendList.objects.get_or_create(user=instance)
+@receiver(post_save, sender=ChatAccount)
+def user_save(sender, instance, **kwargs):
+	FriendList.objects.get_or_create(user=instance)

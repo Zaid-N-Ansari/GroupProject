@@ -45,19 +45,16 @@
 							<div class="text material-icons display-2" id="id_text">edit</div>
 						</div>
 					</div>
-					<form class="form-signin" method="post" enctype="multipart/form-data">{% csrf_token %}
-						<input class="d-none" type="file" name="profile_image" id="id_profile_image"
-							onchange="readURL(this)">
-						<h6 class="mt-4 field-heading">Email</h6>
-						<input type="email" name="email" id="id_input_email" class="form-control"
-							placeholder="Email address" required autofocus value={{form.initial.email}}>
+					<form class="form-signin" method="post" enctype="multipart/form-data">
+						{% csrf_token %}
+						<input class="d-none" type="file" name="profile_image" id="id_profile_image" onchange="readURL(this)">
 						<h6 class="mt-4 field-heading">Username</h6>
-						<input type="text" name="username" id="id_input_username" class="form-control"
-							placeholder="Username" required value="{{form.initial.username}}">
+						<input type="text" name="username" id="id_input_username" class="form-control" placeholder="Username" value="{{form.initial.username}}" required readonly="true" aria-readonly="true" aria-disabled="true">
+						<h6 class="mt-4 field-heading">Email</h6>
+						<input type="email" name="email" id="id_input_email" class="form-control" placeholder="Email address" value={{form.initial.email}}  spellcheck="false">
 						<div class="mt-4 checkbox">
 							<label>
-								<input type="checkbox" name="hide_email" id="id_input_hide_email"
-									{% if form.initial.hide_email %}checked{%endif%}>
+								<input type="checkbox" name="hide_email" id="id_input_hide_email" {% if form.initial.hide_email %}checked{%endif%}>
 								Hide Email
 							</label>
 
