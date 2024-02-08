@@ -39,6 +39,7 @@ class FriendList(models.Model):
 				chat.is_active = True
 				chat.save()
 	
+
 	def remove_friend(self, acc):
 		if acc in self.friends.all():
 			self.friends.remove(acc)
@@ -46,6 +47,7 @@ class FriendList(models.Model):
 			if not chat.is_active:
 				chat.is_active = False
 				chat.save()
+
 
 	def unfriend(self, acc):
 		self.remove_friend(acc)
@@ -74,7 +76,6 @@ class FriendList(models.Model):
 	def is_mutual_friend(self, friend):
 		if friend in self.friends.all():
 			return True
-	
 		return False
 	
 	@property
@@ -87,7 +88,7 @@ class FriendRequest(models.Model):
 
 	receiver = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='receiver')
 	
-	is_active = models.BooleanField(blank=True, default=True, null=False)
+	is_active = models.BooleanField(blank=False, default=True, null=False)
 
 	timestamp = models.DateTimeField(auto_now_add=True)
 
@@ -103,7 +104,6 @@ class FriendRequest(models.Model):
 			content_type = ContentType.objects.get_for_model(self)
 
 			receiver_notification = Notification.objects.get(target=self.receiver, content_type=content_type, object_id=self.id)
-
 			receiver_notification.is_active = False
 			receiver_notification.redirect_url = f'{BASE_URL}/account/{self.sender.pk}/'
 			receiver_notification.verb = f'You accepted {self.sender.username}\'s friend request'
@@ -133,13 +133,13 @@ class FriendRequest(models.Model):
 		self.save()
 		content_type = ContentType.objects.get_for_model(self)
 
-		receiver_notification = Notification.objects.get(target=self.receiver, content_type=content_type, object_id=self.id)
+		notification = Notification.objects.get(target=self.receiver, content_type=content_type, object_id=self.id)
 
-		receiver_notification.is_active = False
-		receiver_notification.redirect_url = f'{BASE_URL}/account/{self.sender.pk}/'
-		receiver_notification.verb = f'You declined {self.sender.username}\'s friend request'
-		receiver_notification.timestamp = dt.now(tz.utc).astimezone()
-		receiver_notification.save()
+		notification.is_active = False
+		notification.redirect_url = f'{BASE_URL}/account/{self.sender.pk}/'
+		notification.verb = f'You declined {self.sender.username}\'s friend request'
+		notification.timestamp = dt.now(tz.utc).astimezone()
+		notification.save()
 
 		self.notifications.create(
 			target = self.sender,
@@ -149,22 +149,14 @@ class FriendRequest(models.Model):
 			content_type = content_type
 		)
 
-		return receiver_notification
+		return notification
 
 
 	def cancel(self):
 		self.is_active = False
 		self.save()
+
 		content_type = ContentType.objects.get_for_model(self)
-
-		receiver_notification = Notification.objects.get(target=self.receiver, content_type=content_type, object_id=self.id)
-
-		receiver_notification.is_active = False
-		receiver_notification.redirect_url = f'{BASE_URL}/account/{self.sender.pk}/'
-		receiver_notification.verb = f'{self.sender.username} cancelled the friend request'
-		receiver_notification.timestamp = dt.now(tz.utc).astimezone()
-		receiver_notification.save()
-
 		self.notifications.create(
 			target = self.sender,
 			from_user = self.receiver,
@@ -172,6 +164,14 @@ class FriendRequest(models.Model):
 			verb = f'You cancelled the friend the friend request to {self.receiver.username}',
 			content_type = content_type
 		)
+
+		notification = Notification.objects.get(target=self.receiver, content_type=content_type, object_id=self.id)
+
+		notification.is_active = False
+		notification.redirect_url = f'{BASE_URL}/account/{self.sender.pk}/'
+		notification.verb = f'{self.sender.username} cancelled the friend request'
+		notification.seen = False
+		notification.save()
 	
 	@property
 	def get_cname(self):
@@ -181,7 +181,7 @@ class FriendRequest(models.Model):
 @receiver(post_save, sender=FriendRequest)
 def create_notification(sender, instance, created, **kwargs):
 	if created:
-		instance.notification.create(
+		instance.notifications.create(
 			target = instance.receiver,
 			from_user = instance.sender,
 			redirect_url = f'{BASE_URL}/account/{instance.sender.pk}/',
