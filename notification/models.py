@@ -8,7 +8,7 @@ class Notification(models.Model):
 	target = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
 
 	from_user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='from_user')
-
+	
 	redirect_url = models.URLField(max_length=200, null=True, unique=False, blank=True, help_text='URL when clicked')
 
 	verb = models.CharField(max_length=120, unique=False, blank=True, null=True)
@@ -28,15 +28,3 @@ class Notification(models.Model):
 	
 	def get_content_object_type(self):
 		return f'{self.content_object.get_cname}'
-	
-
-	
-
-
-
-
-
-
-
-
-
