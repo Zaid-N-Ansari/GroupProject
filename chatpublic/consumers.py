@@ -263,15 +263,3 @@ class LazyChatRoomMessageEncoder(Serializer):
 		dump_obj['profile_image'] = str(obj.user.profile_image.url)
 		dump_obj['timestamp'] = set_timestamp(obj.timestamp)
 		return dump_obj
-
-
-
-
-
-
-
-
-
-
-
-
