@@ -3,6 +3,7 @@ from django.contrib.humanize.templatetags.humanize import naturalday
 from datetime import datetime as dt, timezone as tz
 from pytz import timezone
 
+
 def get_private_chat(user1, user2):
 	try:
 		chat = ChatPrivateRoom.objects.get(user1=user1, user2=user2)
@@ -13,8 +14,8 @@ def get_private_chat(user1, user2):
 			chat = ChatPrivateRoom(user1=user1, user2=user2)
 			chat.save()
 
-
 	return chat
+
 
 def set_timestamp(timestamp):
 	timestamp = timestamp.astimezone(timezone('Asia/Kolkata'))

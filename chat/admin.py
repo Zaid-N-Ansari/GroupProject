@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.core.paginator import Paginator
 from django.core.cache import cache
-from .models import ChatPrivateRoom, ChatRoomMessage
+from .models import ChatPrivateRoom, ChatRoomMessage, UnseenChatRoomMessages
 
 
 class ChatPrivateRoomAdmin(admin.ModelAdmin):
@@ -32,7 +32,6 @@ class CachingPaginator(Paginator):
             except:
                 self._count = len(self.object_list)
         return self._count
-
     count = property(_get_count)
 
 
@@ -49,3 +48,14 @@ class ChatRoomMessageAdmin(admin.ModelAdmin):
         model = ChatRoomMessage
 
 admin.site.register(ChatRoomMessage, ChatRoomMessageAdmin)
+
+
+class UnreadChatRoomMessagesAdmin(admin.ModelAdmin):
+    list_display = ['room','user', 'count' ]
+    search_fields = ['room__user1__username', 'room__user2__username', ]
+    readonly_fields = ['id',]
+
+    class Meta:
+        model = UnseenChatRoomMessages
+
+admin.site.register(UnseenChatRoomMessages, UnreadChatRoomMessagesAdmin)

@@ -2,13 +2,15 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.core.serializers import serialize
 from json import loads, dumps
-from .models import ChatRoomMessage, ChatPrivateRoom
+from .models import ChatRoomMessage, ChatPrivateRoom, UnseenChatRoomMessages
 from friend.models import FriendList
 from django.core.serializers.python import Serializer
 from .exceptions import ClientError
 from datetime import datetime as dt, timezone as tz
 from .utils import set_timestamp
 from django.core.paginator import Paginator
+from account.models import ChatAccount
+from asyncio import gather
 
 
 DEFAULT_RESULT_SIZE_PER_PAGE = 10
@@ -57,13 +59,11 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
 				if payload is not None:
 					payload = loads(payload)
-					print(payload)
 					await self.send_user_info_payload(payload['user_info'])
 				else:
 					raise ClientError('ERROR RETRIEVING', 'Something Went Wrong While Retrieveing User Information')
 				await self.display_progress_bar(False)
 		except ClientError as e:
-			await self.display_progress_bar(False)
 			await self.handle_client_error(e)
 
 
@@ -72,9 +72,9 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
 		try:
 			if self.room_id is not None:
-				await self.leave(self.room_id)
-		except:
-			pass		
+				await self.leave_room(self.room_id)
+		except Exception as e:
+			print(str(e))		
 
 
 	async def join_room(self, room_id):
@@ -85,7 +85,11 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 		except ClientError as e:
 			return await self.handle_client_error(e)
 		
+		await connect_user(room, self.scope['user'])
+		
 		self.room_id = room.id
+
+		await on_user_connected(room, self.scope['user'])
 
 		await self.channel_layer.group_add(
 			room.group_name,
@@ -97,11 +101,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 		})
 
 
-
 	async def leave_room(self, room_id):
 		print('ChatConsumer: leave_room')
 
 		room = await get_room(room_id, self.scope['user'])
+
+		await disconnect_user(room, self.scope['user'])
 
 		await self.channel_layer.group_send(
 			room.group_name,
@@ -136,7 +141,14 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 			
 		room = await get_room(room_id, self.scope['user'])
 
-		await create_room_chat_message(room, self.scope['user'], message)
+		connected_users = room.connected_users.all()
+
+		await gather(*[
+			append_unseen_msg_if_not_connected(room, room.user1, connected_users, message),
+			append_unseen_msg_if_not_connected(room, room.user2, connected_users, message),
+			create_room_chat_message(room, self.scope['user'], message)
+		])
+
 
 		await self.channel_layer.group_send(
 			room.group_name,
@@ -226,7 +238,6 @@ class LazyChatRoomMessageEncoder(Serializer):
 		dump_obj['message'] = str(obj.content)
 		dump_obj['profile_image'] = str(obj.user.profile_image.url)
 		dump_obj['timestamp'] = set_timestamp(obj.timestamp)
-		print(f'**{obj}**')
 		return dump_obj
 
 
@@ -271,8 +282,8 @@ def get_room_chat_msgs(room, page_num):
 		payload['new_page_num'] = new_page_num
 		return dumps(payload)
 	except Exception as e:
-		print(f'\n{str(e)}\n')
-		return None
+		print(f'{str(e)}')
+	return None
 
 
 @database_sync_to_async
@@ -280,8 +291,42 @@ def create_room_chat_message(room, user, msg):
 	return ChatRoomMessage.objects.create(user=user, room=room, content=msg)
 
 
+@database_sync_to_async
+def connect_user(room, user):
+	account = ChatAccount.objects.get(pk=user.username)
+	return room.connect_user(account)
 
 
+@database_sync_to_async
+def disconnect_user(room, user):
+	account = ChatAccount.objects.get(pk=user.username)
+	print(f'\n\n\naccount = {account}\n\n\n')
+	return room.disconnect_user(account)
 
 
+@database_sync_to_async
+def append_unseen_msg_if_not_connected(room, user, connected_users, message):
+	if user not in connected_users: 
+		try:
+			unread_msgs = UnseenChatRoomMessages.objects.get(room=room, user=user)
+			unread_msgs.most_recent_message = message
+			unread_msgs.count += 1
+			unread_msgs.save()
+		except UnseenChatRoomMessages.DoesNotExist:
+			UnseenChatRoomMessages(room=room, user=user, count=1).save()
+			pass
+	return
 
+
+@database_sync_to_async
+def on_user_connected(room, user):
+	connected_users = room.connected_users.all()
+	if user in connected_users:
+		try:
+			unread_msgs = UnseenChatRoomMessages.objects.get(room=room, user=user)
+			unread_msgs.count = 0
+			unread_msgs.save()
+		except UnseenChatRoomMessages.DoesNotExist:
+			UnseenChatRoomMessages(room=room, user=user).save()
+			pass
+	return
