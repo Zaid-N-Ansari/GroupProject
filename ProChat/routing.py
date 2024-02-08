@@ -5,12 +5,14 @@ from django.urls import path
 from django.core.asgi import get_asgi_application
 from chatpublic.consumers import ChatPublicConsumer
 from chat.consumers import ChatConsumer
+from notification.consumers import NotificationConsumer
 
 application = ProtocolTypeRouter({
 	'http': get_asgi_application(),
 	'websocket': AllowedHostsOriginValidator(
 		AuthMiddlewareStack(
 			URLRouter([
+				path('', NotificationConsumer.as_asgi()),
 				path('chat/<room_id>/', ChatConsumer.as_asgi()),
 				path('chatpublic/<room_id>/', ChatPublicConsumer.as_asgi()),
 			])
