@@ -29,12 +29,10 @@ function validateText(str) {
 						'</code></pre>';
 				} catch (__) { }
 			}
-
 			return '<pre><code class="hljs">' + md.utils.escapeHtml(str) + '</code></pre>';
 		},
 		linkify: true,
 	});
-
 	const result = md.render(str);
 	return result;
 }

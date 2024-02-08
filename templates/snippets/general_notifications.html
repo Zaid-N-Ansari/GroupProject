@@ -1,0 +1,569 @@
+{% load static %}
+
+<style type="text/css">
+	.notification-thumbnail-image {
+		height: 50px;
+		width: 50px;
+	}
+
+	.general-card:hover {
+		cursor: pointer;
+		background: #f2f2f2;
+	}
+
+	.general-card {
+		border-bottom: 1px solid var(--main-background-color);
+	}
+
+	.timestamp-text {
+		color: var(--secondary-text-color);
+		width: 100%;
+		text-align: right;
+	}
+</style>
+
+<p id="id_general_page_number">1</p>
+<p id="id_general_oldest_timestamp"></p>
+<p id="id_general_newest_timestamp"></p>
+
+<script src="{% static 'collections/collections.min.js' %}"></script>
+
+<script type="text/javascript" lang="javascript">
+
+	const GENERAL_NOTIFICATION_INTERVAL = 4000;
+	const GENERAL_NOTIFICATION_TIMEOUT = 3000;
+
+	let generalCachedNotifList = new List([]);
+
+	function refreshGeneralNotificationsList(notification) {
+		notificationContainer = document.getElementById("id_general_notifications_container");
+
+		if (notificationContainer != null) {
+			let divs = notificationContainer.childNodes;
+
+			divs.forEach(function (card) {
+				if (card.id == ("id_notification_" + notification['notification_id'])) {
+					switch (notification['notification_type']) {
+						case "FriendRequest":
+							refreshFriendRequestCard(card, notification);
+							break;
+						case "FriendList":
+							refreshFriendListCard(card, notification);
+							break;
+						default:
+							break;
+					}
+				}
+			});
+		}
+	}
+
+	function submitGeneralNotificationToCache(notification) {
+		var result = generalCachedNotifList.filter(function (n) {
+			return n["notification_id"] == notification["notification_id"];
+		});
+		if (result.length == 0) {
+			generalCachedNotifList.push(notification);
+			appendBottomGeneralNotification(notification);
+		}
+		else {
+			refreshGeneralNotificationsList(notification);
+		}
+	}
+
+	function handleGeneralNotificationsData(notifications, new_page_number) {
+		if (notifications.length > 0) {
+			clearNoGeneralNotificationsCard();
+			notifications.forEach(notification => {
+				submitGeneralNotificationToCache(notification);
+				setGeneralOldestTimestamp(notification["timestamp"]);
+				setGeneralNewestTimestamp(notification["timestamp"]);
+			});
+			setGeneralPageNumber(new_page_number);
+		}
+	}
+
+	function handleNewGeneralNotificationsData(notifications) {
+		if (notifications.length > 0) {
+			clearNoGeneralNotificationsCard()
+			notifications.forEach(notification => {
+				submitNewGeneralNotificationToCache(notification);
+				setGeneralOldestTimestamp(notification["timestamp"]);
+				setGeneralNewestTimestamp(notification["timestamp"]);
+			})
+		}
+	}
+
+	function refreshGeneralNotificationsData(notifications) {
+		if (notifications.length > 0) {
+			clearNoGeneralNotificationsCard();
+			notifications.forEach(notification => {
+				submitGeneralNotificationToCache(notification);
+				setGeneralOldestTimestamp(notification["timestamp"]);
+				setGeneralNewestTimestamp(notification["timestamp"]);
+			});
+		}
+	}
+
+
+	function appendTopGeneralNotification(notification) {
+		switch (notification['notification_type']) {
+			case "FriendRequest":
+				var notificationContainer = document.getElementById("id_general_notifications_container");
+				var card = createFriendRequestElement(notification);
+				notificationContainer.insertBefore(card, notificationContainer.childNodes[0]);
+				break;
+
+			case "FriendList":
+				var notificationContainer = document.getElementById("id_general_notifications_container");
+				var card = createFriendListElement(notification);
+				notificationContainer.insertBefore(card, notificationContainer.childNodes[0]);
+				break;
+
+			default:
+				break;
+		}
+
+		preloadImg(notification['from']['image_url'], assignGeneralImgId(notification));
+	}
+
+	function appendBottomGeneralNotification(notification) {
+		switch (notification['notification_type']) {
+			case "FriendRequest":
+				var notificationContainer = document.getElementById("id_general_notifications_container");
+				var card = createFriendRequestElement(notification);
+				notificationContainer.appendChild(card);
+				break;
+
+			case "FriendList":
+				var notificationContainer = document.getElementById("id_general_notifications_container");
+				var card = createFriendListElement(notification);
+				notificationContainer.appendChild(card);
+				break;
+
+			default:
+				break;
+		}
+		preloadImg(notification['from']['image_url'], assignGeneralImgId(notification));
+	}
+
+	function submitNewGeneralNotificationToCache(notification) {
+		const result = generalCachedNotifList.filter(function (n) {
+			return n["notification_id"] == notification["notification_id"];
+		});
+		if(result.length == 0) {
+			generalCachedNotifList.push(notification);
+			appendTopGeneralNotification(notification);
+		}
+		else {
+			refreshGeneralNotificationsList(notification);
+		}
+	}
+
+
+	function refreshFriendRequestCard(card, notification) {
+		card.childNodes.forEach(function (element) {
+			if (element.id == ("id_general_div1_" + notification['notification_id'])) {
+				element.childNodes.forEach(function (child) {
+					if (child.id == ("id_general_verb_" + notification['notification_id'])) {
+						child.innerText = notification['verb'];
+					}
+				});
+			}
+			if (element.id == ("id_general_div2_" + notification['notification_id']) && notification['is_active'] == "False") {
+				card.removeChild(element);
+			}
+			if (element.id == ("id_timestamp_" + notification['notification_id'])) {
+				element.innerText = notification['natural_timestamp'];
+			}
+		});
+	}
+
+
+	function refreshFriendListCard(card, notification) {
+		card.childNodes.forEach(function (element) {
+			if (element.id == ("id_general_div1_" + notification['notification_id'])) {
+				element.childNodes.forEach(function (child) {
+					if (child.id == ("id_general_verb_" + notification['notification_id'])) {
+						child.innerText = notification['verb'];
+					}
+				});
+			}
+			if (element.id == ("id_timestamp_" + notification['notification_id'])) {
+				element.innerText = notification['natural_timestamp'];
+			}
+		});
+	}
+
+
+	function createFriendListElement(notification) {
+		var card = createGeneralNotificationCard();
+		card.id = assignGeneralCardId(notification);
+		card.addEventListener("click", function () {
+			generalRedirect(notification['actions']['redirect_url']);
+		});
+
+		var div1 = document.createElement("div");
+		div1.classList.add("d-flex", "flex-row", "align-items-start");
+		div1.id = assignGeneralDiv1Id(notification);
+
+		img = createGeneralProfileImageThumbnail(notification);
+		div1.appendChild(img);
+
+		span = document.createElement("span");
+		span.classList.add("align-items-start", "pt-1", "m-auto");
+		if (notification['verb'].length > 50) {
+			span.innerText = notification['verb'].slice(0, 50) + "...";
+		}
+		else {
+			span.innerText = notification['verb'];
+		}
+		span.id = assignGeneralVerbId(notification);
+		div1.appendChild(span);
+		card.appendChild(div1);
+		card.appendChild(createGeneralTimestampElement(notification));
+
+		return card;
+	}
+
+	function createFriendRequestElement(notification) {
+		var card = createGeneralNotificationCard();
+		card.id = assignGeneralCardId(notification);
+		card.addEventListener("click", function () {
+			generalRedirect(notification['actions']['redirect_url']);
+		})
+
+		if (notification['is_active'] == "True") {
+			var div1 = document.createElement("div");
+			div1.classList.add("d-flex", "flex-row", "align-items-start");
+			div1.id = assignGeneralDiv1Id(notification);
+
+			var img = createGeneralProfileImageThumbnail(notification);
+			div1.appendChild(img);
+
+			var span = document.createElement("span");
+			span.classList.add("m-auto");
+			span.innerText = notification['verb'];
+			span.id = assignGeneralVerbId(notification);
+			div1.appendChild(span);
+			card.appendChild(div1);
+
+			var div2 = document.createElement("div");
+			div2.classList.add("d-flex", "flex-row", "mt-2", "align-items-center", "justify-content-end");
+			div2.style.width = "100%";
+
+			div2.id = assignGeneralDiv2Id(notification);
+
+			var pos_action = document.createElement("a");
+			pos_action.classList.add("btn", "btn-primary", "mr-2");
+			pos_action.href = "#";
+			pos_action.innerText = "Accept";
+			pos_action.addEventListener("click", function (e) {
+				e.stopPropagation();
+				sendAcceptFriendRequestToSocket(notification['notification_id']);
+			})
+			pos_action.id = assignGeneralPosActionId(notification);
+			div2.appendChild(pos_action);
+
+			var neg_action = document.createElement("a");
+			neg_action.classList.add("btn", "btn-secondary");
+			neg_action.href = "#";
+			neg_action.innerText = "Decline";
+			neg_action.addEventListener("click", function (e) {
+				e.stopPropagation();
+				sendDeclineFriendRequestToSocket(notification['notification_id']);
+			})
+			neg_action.id = assignGeneralNegActionId(notification);
+			div2.appendChild(neg_action);
+			card.appendChild(div2);
+		}
+		else {
+			var div1 = document.createElement("div");
+			div1.classList.add("d-flex", "flex-row", "align-items-start");
+			div1.id = assignGeneralDiv1Id(notification);
+
+			img = createGeneralProfileImageThumbnail(notification);
+			img.id = assignGeneralImgId(notification);
+			div1.appendChild(img);
+
+			span = document.createElement("span");
+			span.classList.add("m-auto");
+			span.innerText = notification['verb'];
+			span.id = assignGeneralVerbId(notification);
+			div1.appendChild(span);
+			card.appendChild(div1);
+		}
+		card.appendChild(createGeneralTimestampElement(notification));
+
+		return card;
+	}
+
+
+	function setupGeneralNotificationsMenu() {
+		var notificationContainer = document.getElementById("id_general_notifications_container");
+		var div = document.createElement("div");
+		if (notificationContainer.innerText == null) {
+			var card = createGeneralNotificationCard("id_no_general_notifications");
+			div.classList.add("d-flex", "flex-row", "align-items-start");
+			var span = document.createElement("span")
+			span.classList.add("align-items-start", "pt-1", "m-auto");
+			span.innerText = "You have no notifications."
+			div.appendChild(span);
+			card.appendChild(div);
+			notificationContainer.appendChild(card);
+		}
+		else {
+			var card = createGeneralNotificationCard("id_no_general_notifications");
+			card.appendChild(div);
+			notificationContainer.appendChild(card);
+			clearNoGeneralNotificationsCard();
+		}
+	}
+
+
+	function clearNoGeneralNotificationsCard() {
+		var element = document.getElementById("id_no_general_notifications");
+		if (element != null && element != "undefined") {
+			document.getElementById("id_general_notifications_container").removeChild(element);
+		}
+	}
+
+
+	function createGeneralNotificationCard(cardId) {
+		var card = document.createElement("div");
+		if (cardId != "undefined") {
+			card.id = cardId;
+		}
+		card.classList.add("d-flex", "flex-column", "align-items-start", "general-card", "px-2", "py-2");
+		return card;
+	}
+
+
+	function createGeneralProfileImageThumbnail(notification) {
+		var img = document.createElement("img");
+		img.classList.add("notification-thumbnail-image", "img-fluid", "rounded-circle", "mr-2");
+		img.src = "{% static 'ProChat/dummy_image.png' %}"; // notification['from']['image_url']
+		img.id = assignGeneralImgId(notification);
+		return img;
+	}
+
+
+	function createGeneralTimestampElement(notification) {
+		var timestamp = document.createElement("p");
+		timestamp.classList.add("small", "pt-2", "timestamp-text", "m-0");
+		timestamp.innerText = notification['natural_timestamp'];
+		timestamp.id = assignGeneralTimestampId(notification);
+		return timestamp;
+	}
+
+	function updateGeneralNotificationDiv(notifications) {
+		var notificationContainer = document.getElementById("id_general_notifications_container");
+		if (notificationContainer != null) {
+			var divs = notificationContainer.childNodes;
+			divs.forEach(function (element) {
+				if (element.id == ("id_notification_" + notification['notification_id'])) {
+					var updateDiv = createFriendRequestElement(notification);
+					element.replaceWith(updateDiv);
+				}
+			});
+		}
+	}
+
+	function setOnGeneralNotificationScrollListener() {
+		var menu = document.getElementById("id_general_notifications_container");
+		if (menu != null) {
+			menu.addEventListener("scroll", function (e) {
+				if (menu.scrollTop >= (menu.scrollHeight - menu.offsetHeight)) {
+					getNextGeneralNotificationsPage();
+				}
+			});
+		}
+	}
+
+	setOnGeneralNotificationScrollListener();
+
+	function setGeneralPaginationExhausted() {
+		setGeneralPageNumber("-1");
+	}
+
+	function setGeneralPageNumber(pageNumber) {
+		document.getElementById("id_general_page_number").innerText = pageNumber;
+	}
+
+	function setGeneralOldestTimestamp(timestamp) {
+		var elm = document.getElementById("id_general_oldest_timestamp");
+		var cur = elm.innerText;
+		if (Date.parse(timestamp) < Date.parse(cur)) {
+			elm.innerText = timestamp;
+		}
+	}
+
+	function setGeneralNewestTimestamp(timestamp) {
+		var elm = document.getElementById("id_general_newest_timestamp");
+		var cur = elm.innerText;
+		if (Date.parse(timestamp) > Date.parse(cur)) {
+			elm.innerText = timestamp;
+		}
+		else if (cur == "") {
+			elm.innerText = timestamp;
+		}
+	}
+
+	function startGeneralNotificationsService() {
+		if ("{{request.user.is_authenticated}}" == "True") {
+			setInterval(refreshGeneralNotifications, GENERAL_NOTIFICATION_INTERVAL);
+			setInterval(getNewGeneralNotifications, GENERAL_NOTIFICATION_INTERVAL);
+			setInterval(getUnseenGeneralNotificationsCount, GENERAL_NOTIFICATION_INTERVAL);
+		}
+	}
+
+	startGeneralNotificationsService();
+
+	function setUnseenGeneralNotificationsCount(count) {
+		const cl = document.getElementById("id_general_notifications_count");
+		if(count > 0) {
+			cl.setAttribute("class", "text-danger d-inline");
+			cl.innerText = count;
+		}
+		else{
+			cl.setAttribute("class", "d-none");
+		}
+	}
+
+	function setGeneralNotificationsAsSeen() {
+		if ("{{request.user.is_authenticated}}" == "True") {
+			ws_notification.send(JSON.stringify({
+				"command": "mark_notifications_seen"
+			}));
+			getUnseenGeneralNotificationsCount();
+		}
+	}
+
+	function getUnseenGeneralNotificationsCount() {
+		if ("{{request.user.is_authenticated}}" == "True") {
+			ws_notification.send(JSON.stringify({
+				"command": "get_unseen_general_notifications_count"
+			}));
+		}
+	}
+
+	function getNewGeneralNotifications() {
+		let newestTS = document.getElementById("id_general_newest_timestamp").innerText;
+		if ("{{request.user.is_authenticated}}" == "True") {
+			ws_notification.send(JSON.stringify({
+				"command": "get_new_general_notifications",
+				"newest_timestamp": newestTS
+			}));
+		}
+	}
+
+	function refreshGeneralNotifications() {
+		var oldestTS = document.getElementById("id_general_oldest_timestamp").innerText;
+		var newestTS = document.getElementById("id_general_newest_timestamp").innerText;
+		if ("{{request.user.is_authenticated}}" == "True") {
+			ws_notification.send(JSON.stringify({
+				"command": "refresh_general_notifications",
+				"oldest_timestamp": oldestTS,
+				"newest_timestamp": newestTS
+			}));
+		}
+	}
+
+	function getFirstGeneralNotificationsPage() {
+		if ("{{request.user.is_authenticated}}" == "True") {
+			ws_notification.send(JSON.stringify({
+				"command": "get_general_notifications",
+				"page_number": "1"
+			}));
+		}
+	}
+
+	function sendAcceptFriendRequestToSocket(notification_id) {
+		ws_notification.send(JSON.stringify({
+			"command": "accept_friend_req",
+			"notification_id": notification_id
+		}));
+	}
+
+	function sendDeclineFriendRequestToSocket(notification_id) {
+		ws_notification.send(JSON.stringify({
+			"command": "decline_friend_req",
+			"notification_id": notification_id
+		}));
+	}
+
+	function getNextGeneralNotificationsPage() {
+		var pageNum = document.getElementById("id_general_page_number").innerText;
+		if ("{{request.user.is_authenticated}}" == "True" && pageNum != "-1") {
+			ws_notification.send(JSON.stringify({
+				"command": "get_general_notifications",
+				"page_number": pageNum
+			}));
+		}
+	}
+
+	function generalRedirect(url) {
+		window.location.href = url
+	}
+
+	function assignGeneralDiv1Id(notification) {
+		return "id_general_div1_" + notification['notification_id']
+	}
+
+	function assignGeneralImgId(notification) {
+		return "id_general_img_" + notification['notification_id']
+	}
+
+	function assignGeneralVerbId(notification) {
+		return "id_general_verb_" + notification['notification_id']
+	}
+
+	function assignGeneralDiv2Id(notification) {
+		return "id_general_div2_" + notification['notification_id']
+	}
+
+	function assignGeneralPosActionId(notification) {
+		return "id_general_pos_action_" + notification['notification_id']
+	}
+
+	function assignGeneralNegActionId(notification) {
+		return "id_general_neg_action_" + notification['notification_id']
+	}
+
+	function assignGeneralTimestampId(notification) {
+		return "id_timestamp_" + notification['notification_id']
+	}
+
+	function assignGeneralCardId(notification) {
+		return "id_notification_" + notification['notification_id']
+	}
+
+	function setInitialTimestamp() {
+		var today = new Date();
+		var month = today.getMonth() + 1
+		if (month.toString().length == 1) {
+			month = "0" + month
+		}
+		var day = today.getDate();
+		if (day.toString().length == 1) {
+			day = "0" + day
+		}
+		var hours = today.getHours();
+		if (hours.toString().length == 1) {
+			hours = "0" + hours
+		}
+		var minutes = today.getMinutes();
+		if (minutes.toString().length == 1) {
+			minutes = "0" + minutes
+		}
+		var seconds = today.getSeconds();
+		if (seconds.toString().length == 1) {
+			seconds = "0" + seconds;
+		}
+		var date = `${today.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}.000000`;
+		document.getElementById("id_general_oldest_timestamp").innerText = date;
+		document.getElementById("id_general_newest_timestamp").innerText = date;
+	}
+
+	setInitialTimestamp();
+</script>

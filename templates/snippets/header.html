@@ -5,8 +5,17 @@
 		color: var(--light-primary-text-color);
 		cursor: pointer;
 	}
-	.justify-content-evenly {
-		justify-content: space-evenly !important;
+	.scrollable-menu {
+		height: auto;
+		max-height: 50vh;
+		width: max-content;
+		overflow-x: hidden;
+	}
+	#id_general_notifications_container, #id_chat_notifications_container {
+		width: 29.3rem;
+	}
+	.chat-dropdown-header{
+		color: var(--light-primary-text-color);
 	}
 </style>
 
@@ -25,25 +34,25 @@
 				<div class="dropdown dropleft show p-2">
 					<div class="d-flex flex-row">
 						<div class="btn-group dropleft">
-							<div class="d-flex notifications-icon-container rounded-circle align-items-center mr-3"
+							<div class="d-flex notifications-icon-container rounded-circle flex-row-reverse mr-3"
 								id="id_chat_notification_dropdown_toggle" data-toggle="dropdown">
-								<span id="id_chat_notifications_count" class="notify-badge"></span>
+								<span id="id_chat_notifications_count" class="notify-badge text-danger"></span>
 								<span
 									class="d-flex material-icons notifications-material-icon m-auto align-items-center">chat</span>
-								<div class="dropdown-menu scrollable-menu"
+								<div class="dropdown-menu scrollable-menu p-0"
 									aria-labelledby="id_chat_notification_dropdown_toggle"
 									id="id_chat_notifications_container">
 								</div>
 							</div>
 						</div>
 						<div class="btn-group dropleft">
-							<div class="d-flex notifications-icon-container rounded-circle align-items-center mr-3"
+							<div class="d-flex notifications-icon-container rounded-circle flex-row-reverse mr-3"
 								id="id_notification_dropdown_toggle" data-toggle="dropdown"
-								onclick="setGeneralNotificationsAsRead()">
+								onclick="setGeneralNotificationsAsSeen()">
 								<span id="id_general_notifications_count" class="notify-badge"></span>
 								<span
 									class="d-flex material-icons notifications-material-icon m-auto align-items-center">notifications</span>
-								<div class="dropdown-menu scrollable-menu"
+								<div class="dropdown-menu scrollable-menu p-0"
 									aria-labelledby="id_notification_dropdown_toggle"
 									id="id_general_notifications_container">
 								</div>
@@ -103,9 +112,80 @@
 	<!-- END SMALL SCREENS -->
 </div>
 
+{% include 'snippets/general_notifications.html' %}
+{% include 'snippets/chat_notifications.html' %}
+
 <script type="text/javascript" lang="javascript">
 
-	setupChatDropdownHeader();
+	const ws_scheme_notification = window.location.protocol === 'https:' ? 'wss' : 'ws';
+
+	const ws_path_notification = `${ws_scheme_notification}://${window.location.host}/`;
+	// const ws_path_notification = `${ws_scheme_notification}://${window.location.host}:8001/chat/${room_id}/`;
+
+	const ws_notification = new WebSocket(ws_path_notification);
+
+	ws_notification.onmessage = function(msg) {
+		const data = JSON.parse(msg.data);
+		console.log("Got Chat Notification : " + data.chat_msg_type);
+		console.log("Got Gen Chat Notification : " + data.general_msg_type);
+		if(data.general_msg_type == 0) {
+			handleGeneralNotificationsData(data["notifications"], data["new_page_number"]);
+		}
+		if(data.general_msg_type == 1) {
+			setGeneralPaginationExhausted();
+		}
+		if(data.general_msg_type == 2) {
+			refreshGeneralNotificationsData(data["notifications"]);
+		}
+		if(data.general_msg_type == 3) {
+			handleNewGeneralNotificationsData(data["notifications"]);
+		}
+		if(data.general_msg_type == 4) {
+			setUnseenGeneralNotificationsCount(data["count"]);
+		}
+		if(data.general_msg_type == 5) {
+			updateGeneralNotificationDiv(data["notification"]);
+		}
+
+
+		if(data.chat_msg_type == 10) {
+			handleChatNotificationsData(data["notifications"], data["new_page_number"]);
+		}
+		if(data.chat_msg_type == 11) {
+			setChatPaginationExhaust();
+		}
+		if(data.chat_msg_type == 13) {
+			handleNewChatNotificationsData(data["notifications"]);
+		}
+		if(data.chat_msg_type == 14) {
+			setChatNotificationsCount(data["count"]);
+		}
+	}
+
+	ws_notification.onopen = function(event) {
+		console.log("WS Notification OPENED");
+		setupGeneralNotificationsMenu();
+		getFirstGeneralNotificationsPage();
+		getUnseenGeneralNotificationsCount();
+
+		setupChatNotificationsMenu();
+		getFirstChatNotificationsPage();
+	}
+
+	ws_notification.onclose = function(event) {
+		console.info("WS Notification CLOSED",event);
+	}
+
+	ws_notification.onerror = function(event) {
+		console.error("WS Notification ERR", event);
+	}
+
+	if(ws_notification.readyState == ws_notification.OPEN) {
+		console.log("WS Notification OPEN CMP");
+	}
+	if(ws_notification.readyState == ws_notification.CONNECTING) {
+		console.log("WS Notification Conn...");
+	}
 
 	function executeQuery() {
 		var query = ""
@@ -113,38 +193,7 @@
 		if (query == ""){
 			query = document.getElementById('id_q_large').value;
 		}
-	    window.location.replace("{% url 'search' %}?q=" + query)
-	    return false
+	    window.location.replace("{% url 'search' %}?q=" + query);
+	    return false;
 	}
-
-	function setupChatDropdownHeader() {
-		var notificationContainer = document.getElementById("id_chat_notifications_container");
-
-		if (notificationContainer != null) {
-
-			var div = document.createElement("div")
-			div.classList.add("chat-dropdown-header", "d-flex", "flex-row", "justify-content-evenly");
-			div.addEventListener("click", function (e) {
-				var url = "{% url 'chat:private-chat-room' %}";
-				chatRedirect(url);
-			});
-
-			span1 = document.createElement("span");
-			span1.innerText = "Go to chat";
-			div.appendChild(span1);
-
-			span2 = document.createElement("span");
-			span2.classList.add("material-icons");
-			span2.innerHTML = "open_with";
-			div.appendChild(span2);
-			notificationContainer.appendChild(div);
-
-			span1.style.cursor = span2.style.cursor = "default";
-		}
-	}
-
-	function chatRedirect(url) {
-		window.location.href = url
-	}
-
 </script>
