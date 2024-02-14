@@ -29,25 +29,16 @@ CHAT_MSG_TYPE_GET_UNSEEN_NOTIFICATIONS_COUNT = 14
 
 class NotificationConsumer(AsyncJsonWebsocketConsumer):
 	async def connect(self):
-		"""
-		Called when the websocket is handshaking as part of initial connection.
-		"""
 		print("NotificationConsumer: connect: " + str(self.scope["user"]) )
 		await self.accept()
 
 
 	async def disconnect(self, code):
-		"""
-		Called when the WebSocket closes for any reason.
-		"""
 		print("NotificationConsumer: disconnect")
+		self.disconnect(code)
 
 
 	async def receive_json(self, content):
-		"""
-		Called when we get a text frame. Channels will JSON-decode the payload
-		for us and pass it as the first argument.
-		"""
 		command = content.get("command", None)
 		print("NotificationConsumer: receive_json. Command: " + command)
 		try:
@@ -94,7 +85,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
 			elif command == 'mark_notifications_seen':
 				await mark_notifications_seen(self.scope['user'])
 			elif command == 'get_chat_notifications':
-				payload = await get_chat_notifications(self.scope['user'], content['page_number'])
+				payload = await get_chat_notifications(self.scope['user'], content.get('page_number', None))
 				if payload is None:
 					await self.chat_pagination_exhaust()
 				else:
@@ -357,12 +348,12 @@ def mark_notifications_seen(user):
 
 @database_sync_to_async
 def get_chat_notifications(user, page_number):
-	payload = {}
 	if user.is_authenticated:
 		ct = ContentType.objects.get_for_model(UnseenChatRoomMessages)
 		notifications = Notification.objects.filter(target=user, content_type=ct).order_by('-timestamp')
 		p = Paginator(notifications, DEFAULT_NOTIFICATION_PAGE_SIZE)
 
+		payload = {}
 		if len(notifications) > 0:
 			if int(page_number) <= p.num_pages:
 				s = LazyNotificationEncoder()
@@ -370,18 +361,17 @@ def get_chat_notifications(user, page_number):
 				payload['notifications'] = serialized_notifications
 				new_page_number = int(page_number) + 1
 				payload['new_page_number'] = new_page_number
+				return dumps(payload)
 		else:
 			return None
 	else:
-		raise ClientError(204, 'Authentication Required')
-
-	return dumps(payload)
+		raise ClientError("Authentication Required")
+	return None
 
 
 @database_sync_to_async
 def get_new_chat_notifications(user, newestTS):
 	payload = {}
-	print(f'\n\n\nuser : {user}\nnewestTS : {newestTS}\n\n\n')
 	if user.is_authenticated:
 		timestamp = newestTS[0:newestTS.find('+')]
 		timestamp = dt.strptime(timestamp, '%Y-%m-%d %H:%M:%S.%f')
@@ -389,8 +379,6 @@ def get_new_chat_notifications(user, newestTS):
 		notifications = Notification.objects.filter(target=user, content_type=chatmessage_ct, timestamp__gt=timestamp, seen=False).order_by('-timestamp')
 		s = LazyNotificationEncoder()
 		payload['notifications'] = s.serialize(notifications)
-		print(f"\n\n\npayload : {payload}\n\n\n")
-		print(f"\n\n\nnotifications : {notifications}\n\n\n")
 		return dumps(payload) 
 	else:
 		raise ClientError("AUTH_ERROR", "Authentication Required")

@@ -361,8 +361,8 @@
 		if (notificationContainer != null) {
 			var divs = notificationContainer.childNodes;
 			divs.forEach(function (element) {
-				if (element.id == ("id_notification_" + notification['notification_id'])) {
-					var updateDiv = createFriendRequestElement(notification);
+				if (element.id == ("id_notification_" + notifications['notification_id'])) {
+					var updateDiv = createFriendRequestElement(notifications);
 					element.replaceWith(updateDiv);
 				}
 			});

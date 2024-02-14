@@ -126,8 +126,8 @@
 
 	ws_notification.onmessage = function(msg) {
 		const data = JSON.parse(msg.data);
-		console.log("Got Chat Notification : " + data.chat_msg_type);
-		console.log("Got Gen Chat Notification : " + data.general_msg_type);
+		console.log(data.chat_msg_type);
+		// console.log("Got Gen Chat Notification : " + data.general_msg_type);
 		if(data.general_msg_type == 0) {
 			handleGeneralNotificationsData(data["notifications"], data["new_page_number"]);
 		}
@@ -147,8 +147,8 @@
 			updateGeneralNotificationDiv(data["notification"]);
 		}
 
-
 		if(data.chat_msg_type == 10) {
+			console.info(data["notifications"]);
 			handleChatNotificationsData(data["notifications"], data["new_page_number"]);
 		}
 		if(data.chat_msg_type == 11) {

@@ -31,99 +31,16 @@
 <script lang="javascript" type="text/javascript">
 
 	setOnChatNotificationScrollListener();
+	onChatNotificationsPaginationTriggerListener();
 
 	const CHAT_NOTIFICATION_INTERVAL = 4000;
 
 	var chatCacheNotifList = new List([]);
 
-
-
-	function setChatPageNumber(pageNumber) {
-		document.getElementById("id_chat_page_number").innerText = pageNumber;
-	}
-
-	function setChatPaginationExhaust() {
-		setChatPageNumber("-1");
-	}
-
-	function refreshUnseenChatRoomMessagesCard(card, notification) {
-		card.childNodes.forEach(function(element) {
-			if(element.id == ("id_chat_div1_" + notification['notification_id'])) {
-				element.childNodes.forEach(function(child) {
-					if(child.id == ("id_chat_div2_" + notification['notification_id'])) {
-						child.childNodes.forEach(function(nextChild){
-							if(nextChild.id == ("id_chat_title_" + notification['notification_id'])) {
-								nextChild.innerText = notification['from']['title'];
-							}
-							if(nextChild.id == ("id_chat_message_" + notification['notification_id'])) {
-								if(notification['verb'].length > 50) {
-									nextChild.innerText = notification['verb'].slice(0, 50) + "...";
-								}
-								else{
-									nextChild.innerText = notification['verb'];
-								}
-							}
-						});
-					}
-				});
-			}
-			if (element.id == ("id_timestamp_" + notification['notification_id'])) {
-				element.innerText = notification['natural_timestamp'];
-				console.log("from refresh notification['natural_timestamp'] : ",notification['natural_timestamp']);
-			}
-		});
-	}
-
-	function refreshChatNotificationsList(notification) {
-		var notificationContainer = document.getElementById("id_chat_notifications_container");
-		if(notificationContainer != null) {
-			var divs = notificationContainer.childNodes;
-			divs.forEach(function(card){
-				if(card.id == ("id_notification_" + notification['notification_id'])) {
-					if(notification['notification_type'] == "UnseenChatRoomMessages"){
-						refreshUnseenChatRoomMessagesCard(card, notification);
-					}
-				}
-			});
-		}
-	}
-
-	function handleNewChatNotificationsData(notifications){
-		console.log("in handleNewChatNotificationsData");
-		console.log("notifications : ", notifications, notifications.length);
-		if(notifications.length > 0){
-			clearNoChatNotificationsCard();
-			notifications.forEach(notification => {
-				submitNewChatNotificationToCache(notification);
-				setChatNewestTimestamp(notification['timestamp']);
-			});
-		}
-	}
-
-	function appendTopChatNotification(notification){
-		switch(notification['notification_type']) {
-			case "UnreadChatRoomMessages":
-				var chatNotificationContainer = document.getElementById("id_chat_notifications_container");
-				var card = createUnseenChatRoomMessagesElement(notification);
-				if(chatNotificationContainer.childNodes.length > 2){
-					const index = 2
-					chatNotificationContainer.insertBefore(card, chatNotificationContainer.childNodes[index]);
-				}
-				else {
-					chatNotificationContainer.appendChild(card);
-				}
-				break;
-			default:
-				break;
-		}
-	}
-
 	function submitNewChatNotificationToCache(notification){
-		console.log("in submitNewChatNotificationToCache");
 		var result = chatCacheNotifList.filter(function(n){ 
 			return n['notification_id'] === notification['notification_id'];
 		});
-		console.log("result : ", result, result.length);
 		if(result.length == 0){
 			chatCacheNotifList.push(notification);
 			appendTopChatNotification(notification);
@@ -146,12 +63,32 @@
 		}
 	}
 
+	function handleNewChatNotificationsData(notifications){
+		console.log("\n\nin handleNewChatNotificationsData\n\n"+notifications.length);
+		if(notifications.length > 0){
+			clearNoChatNotificationsCard();
+			notifications.forEach(notification => {
+				submitNewChatNotificationToCache(notification);
+				setChatNewestTimestamp(notification['timestamp']);
+			});
+		}
+	}
+
+	function handleChatNotificationsData(notifications, new_page_number) {
+		console.log("\n\nin handleChatNotificationsData\n\n"+notifications.length);
+		if(notifications.length > 0){
+			clearNoChatNotificationsCard();
+			notifications.forEach(notification => {
+				submitChatNotificationToCache(notification);
+				setChatNewestTimestamp(notification["timestamp"]);
+			});
+			setChatPageNumber(new_page_number);
+		}
+	}
+
 	function setChatNewestTimestamp(timestamp) {
 		const elm = document.getElementById("id_chat_newest_timestamp");
 		var cur = elm.innerText;
-		console.log("elm = ", elm);
-		console.log("cur = ", cur);
-		console.log(Date.parse(timestamp) > Date.parse(cur));
 		if(Date.parse(timestamp) > Date.parse(cur)) {
 			elm.innerText = timestamp;
 		}
@@ -160,13 +97,12 @@
 		}
 	}
 
-
 	function setupChatDropdownHeader() {
 		var notificationContainer = document.getElementById("id_chat_notifications_container");
 
 		if (notificationContainer != null) {
 
-			var div = document.createElement("div")
+			var div = document.createElement("div");
 			div.classList.add("chat-dropdown-header", "d-flex", "flex-row", "justify-content-end", "my-2", "mr-2");
 			div.addEventListener("click", function (e) {
 				var url = "{% url 'chat:private-chat-room' %}";
@@ -191,13 +127,6 @@
 		window.location.href = url;
 	}
 
-	function clearNoChatNotificationsCard() {
-		const elm = document.getElementById("id_no_chat_notifications");
-		if(elm != null && elm != "undefined") {
-			document.getElementById("id_chat_notifications_container").removeChild(elm);
-		}
-	}
-
 	function setupChatNotificationsMenu() {
 		var notificationContainer = document.getElementById("id_chat_notifications_container");
 		if(notificationContainer != null) {
@@ -214,6 +143,13 @@
 			card.appendChild(div);
 			notificationContainer.appendChild(card);
 			setChatNotificationsCount([]);
+		}
+	}
+
+	function clearNoChatNotificationsCard() {
+		const elm = document.getElementById("id_no_chat_notifications");
+		if(elm != null && elm != "undefined") {
+			document.getElementById("id_chat_notifications_container").removeChild(elm);
 		}
 	}
 
@@ -246,7 +182,6 @@
 		const card = createChatNotificationsCard();
 		card.id = assignChatCardId(notification)
 		card.addEventListener("click", function(){
-			alert(notification['actions']['redirect_url']);
 			let url = notification['actions']['redirect_url']
 			url = url.substr(0, url.length-1)
 			chatRedirect(url);
@@ -286,6 +221,24 @@
 		return card;
 	}
 
+	function appendTopChatNotification(notification){
+		switch(notification['notification_type']) {
+			case "UnreadChatRoomMessages":
+				var chatNotificationContainer = document.getElementById("id_chat_notifications_container");
+				var card = createUnseenChatRoomMessagesElement(notification);
+				if(chatNotificationContainer.childNodes.length > 2){
+					const index = 2
+					chatNotificationContainer.insertBefore(card, chatNotificationContainer.childNodes[index]);
+				}
+				else {
+					chatNotificationContainer.appendChild(card);
+				}
+				break;
+			default:
+				break;
+		}
+	}
+
 	function appendBottomChatNotification(notification){
 		switch(notification['notification_type']) {
 			case "UnseenChatRoomMessages":
@@ -298,16 +251,53 @@
 		}
 	}
 
-	function handleChatNotificationsData(notifications, new_page_number) {
-		console.log("in handleChatNotificationsData",notifications.length);
-		if(notifications.length > 0){
-			clearNoChatNotificationsCard();
-			notifications.forEach(notification => {
-				submitChatNotificationToCache(notification);
-				setChatNewestTimestamp(notification["timestamp"]);
+	function refreshUnseenChatRoomMessagesCard(card, notification) {
+		card.childNodes.forEach(function(element) {
+			if(element.id == ("id_chat_div1_" + notification['notification_id'])) {
+				element.childNodes.forEach(function(child) {
+					if(child.id == ("id_chat_div2_" + notification['notification_id'])) {
+						child.childNodes.forEach(function(nextChild){
+							if(nextChild.id == ("id_chat_title_" + notification['notification_id'])) {
+								nextChild.innerText = notification['from']['title'];
+							}
+							if(nextChild.id == ("id_chat_message_" + notification['notification_id'])) {
+								if(notification['verb'].length > 50) {
+									nextChild.innerText = notification['verb'].slice(0, 50) + "...";
+								}
+								else{
+									nextChild.innerText = notification['verb'];
+								}
+							}
+						});
+					}
+				});
+			}
+			if (element.id == ("id_timestamp_" + notification['notification_id'])) {
+				element.innerText = notification['natural_timestamp'];
+			}
+		});
+	}
+
+	function refreshChatNotificationsList(notification) {
+		var notificationContainer = document.getElementById("id_chat_notifications_container");
+		if(notificationContainer != null) {
+			var divs = notificationContainer.childNodes;
+			divs.forEach(function(card){
+				if(card.id == ("id_notification_" + notification['notification_id'])) {
+					if(notification['notification_type'] == "UnseenChatRoomMessages"){
+						refreshUnseenChatRoomMessagesCard(card, notification);
+					}
+				}
 			});
-			setChatPageNumber(new_page_number);
 		}
+	}
+
+	function setChatPaginationExhaust() {
+		setChatPageNumber("-1");
+	}
+
+	function setChatPageNumber(pageNumber) {
+		document.getElementById("id_chat_page_number").innerText = pageNumber;
 	}
 
 	function onChatNotificationsPaginationTriggerListener() {
@@ -343,7 +333,7 @@
 
 	function getUnseenChatNotificationsCount(){
 		const pageNum = document.getElementById("id_chat_page_number").innerText;
-		if("{{request.user.is_authenticated}}" == "True" && pageNum != "-1"){
+		if("{{request.user.is_authenticated}}" == "True"){
 			ws_notification.send(JSON.stringify({
 				"command": "get_unseen_chat_notifications_count"
 			}));
@@ -352,21 +342,14 @@
 
 	function getNextChatNotificationsPage(){
 		const pageNum = document.getElementById("id_chat_page_number").innerText;
+		console.log(ws_notification);
 		if("{{request.user.is_authenticated}}" == "True" && pageNum != "-1"){
-			ws_notification.send(JSON.stringify({
-				"command": "get_chat_notifications",
-				"page_number": pageNum,
-			}));
-			getUnseenChatNotificationsCount();
-		}
-	}
-
-	function getFirstChatNotificationsPage(){
-		if("{{request.user.is_authenticated}}" == "True"){
-			ws_notification.send(JSON.stringify({
-				"command": "get_chat_notifications",
-				"page_number": "1",
-			}));
+			ws_notification.onopen = function(event) {
+				ws_notification.send(JSON.stringify({
+					"command": "get_chat_notifications",
+					"page_number": pageNum,
+				}));
+			}
 		}
 	}
 
@@ -380,8 +363,19 @@
 		}
 	}
 
+	function getFirstChatNotificationsPage(){
+		if("{{request.user.is_authenticated}}" == "True"){
+			ws_notification.send(JSON.stringify({
+				"command": "get_chat_notifications",
+				"page_number": "1",
+			}));
+			getUnseenChatNotificationsCount();
+		}
+	}
+
 	function startChatNotificationService() {
 		if("{{request.user.is_authenticated}}" == "True"){
+			setInterval(getFirstChatNotificationsPage, CHAT_NOTIFICATION_INTERVAL);
 			setInterval(getNewChatNotifications, CHAT_NOTIFICATION_INTERVAL);
 			setInterval(getUnseenChatNotificationsCount, CHAT_NOTIFICATION_INTERVAL);
 		}
