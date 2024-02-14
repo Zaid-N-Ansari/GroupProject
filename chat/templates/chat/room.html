@@ -271,7 +271,7 @@
 
 		ws.addEventListener("open", function (event) {
 			console.log("Private Chat Socket OPEN");
-			if ("{{request.user.is_authenticated}}") {
+			if ("{{request.user.is_authenticated}}" == "True") {
 				ws.send(JSON.stringify({
 					"command": "join",
 					"room_id": room_id

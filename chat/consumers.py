@@ -15,6 +15,8 @@ from asyncio import gather
 
 DEFAULT_RESULT_SIZE_PER_PAGE = 10
 MSG_TYPE_MESSAGE = 0
+MSG_TYPE_ENTER = 1
+MSG_TYPE_LEAVE = 2
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
@@ -100,6 +102,18 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 			'join': str(room.id)
 		})
 
+		if self.scope["user"].is_authenticated:
+			# Notify the group that someone joined
+			await self.channel_layer.group_send(
+				room.group_name,
+				{
+					"type": "chat.join",
+					"room_id": room_id,
+					"profile_image": self.scope["user"].profile_image.url,
+					"username": self.scope["user"].username,
+				}
+			)
+
 
 	async def leave_room(self, room_id):
 		print('ChatConsumer: leave_room')
@@ -115,6 +129,16 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 				'room_id': room_id,
 				'profile_image': self.scope['user'].profile_image.url,
 				'username': self.scope['user'].username
+			}
+		)
+
+		await self.channel_layer.group_send(
+			room.group_name,
+			{
+				"type": "chat.leave",
+				"room_id": room_id,
+				"profile_image": self.scope["user"].profile_image.url,
+				"username": self.scope["user"].username,
 			}
 		)
 
@@ -160,6 +184,31 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 			}
 		)
 
+	async def chat_join(self, event):
+		if event["username"]:
+			await self.send_json(
+				{
+					"msg_type": MSG_TYPE_ENTER,
+					"room": event["room_id"],
+					"profile_image": event["profile_image"],
+					"username": event["username"],
+					"message": event["username"] + " connected.",
+				},
+			)
+
+
+	async def chat_leave(self, event):
+		print("ChatConsumer: chat_leave")
+		if event["username"]:
+			await self.send_json(
+			{
+				"msg_type": MSG_TYPE_LEAVE,
+				"room": event["room_id"],
+				"profile_image": event["profile_image"],
+				"username": event["username"],
+				"message": event["username"] + " disconnected.",
+			},
+		)
 
 	async def chat_message(self, event):
 		print('ChatConsumer: chat_message')
@@ -174,7 +223,6 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 		})
 
 	async def send_messages_payload(self, messages, new_page_num):
-		print('ChatConsumer: send_messages_payload. ')
 
 		await self.send_json({
 			'messages_payload': 'messages_payload',
@@ -300,7 +348,6 @@ def connect_user(room, user):
 @database_sync_to_async
 def disconnect_user(room, user):
 	account = ChatAccount.objects.get(pk=user.username)
-	print(f'\n\n\naccount = {account}\n\n\n')
 	return room.disconnect_user(account)
 
 
